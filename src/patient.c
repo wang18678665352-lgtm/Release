@@ -1,6 +1,12 @@
-﻿#include "patient.h"
+#include "patient.h"
 
+/**
+ * @brief 显示所有可用科室
+ * 
+ * 从数据文件中加载科室列表并以表格形式展示。
+ */
 void show_available_departments(void) {
+    // 加载科室链表
     DepartmentNode *head = load_departments_list();
     
     if (!head) {
@@ -12,6 +18,7 @@ void show_available_departments(void) {
     printf("%-10s %-20s %-15s\n", "科室编号", "科室名称", "负责人");
     printf("-------------------------------------------\n");
     
+    // 遍历链表打印科室信息
     DepartmentNode *current = head;
     while (current) {
         printf("%-10s %-20s %-15s\n", 
@@ -21,10 +28,19 @@ void show_available_departments(void) {
         current = current->next;
     }
     
+    // 释放内存
     free_department_list(head);
 }
 
+/**
+ * @brief 显示特定科室的医生列表
+ * 
+ * 根据输入的科室ID，筛选并展示该科室下所有医生的详细信息。
+ * 
+ * @param department_id 科室编号
+ */
 void show_doctors_by_department(const char *department_id) {
+    // 加载医生链表
     DoctorNode *head = load_doctors_list();
     
     int found = 0;
@@ -32,6 +48,7 @@ void show_doctors_by_department(const char *department_id) {
     printf("%-10s %-15s %-10s %-10s\n", "医生编号", "医生姓名", "职称", "繁忙程度");
     printf("--------------------------------------------------------\n");
     
+    // 遍历并匹配科室编号
     DoctorNode *current = head;
     while (current) {
         if (strcmp(current->data.department_id, department_id) == 0) {
@@ -52,6 +69,13 @@ void show_doctors_by_department(const char *department_id) {
     }
 }
 
+/**
+ * @brief 患者模块主菜单
+ * 
+ * 展示患者可操作的功能选项。
+ * 
+ * @param current_user 当前登录用户
+ */
 void patient_main_menu(const User *current_user) {
     printf("\n========== 患者系统 ==========\n");
     printf("当前用户: %s\n", current_user->username);
@@ -63,23 +87,33 @@ void patient_main_menu(const User *current_user) {
     printf("6. 修改个人信息\n");
 }
 
+/**
+ * @brief 患者挂号流程处理
+ * 
+ * 包含科室选择、医生选择、预约单生成及医生繁忙度更新的完整业务逻辑。
+ * 
+ * @param current_user 当前登录用户
+ * @return int 操作结果状态码
+ */
 int patient_register_menu(const User *current_user) {
     printf("\n========== 挂号功能 ==========\n");
 
+    // 确保患者档案已初始化
     if (ensure_patient_profile(current_user->username) != SUCCESS) {
-        printf("Patient profile initialization failed!\n");
+        printf("患者档案初始化失败!\n");
         return ERROR_FILE_IO;
     }    
-    // First, show available departments
+    
+    // 1. 展示科室供选择
     show_available_departments();
     
-    // Get department choice
+    // 获取科室编号
     char department_id[MAX_ID];
     printf("\n请输入科室编号: ");
     if (fgets(department_id, MAX_ID, stdin) == NULL) return ERROR_INVALID_INPUT;
     department_id[strcspn(department_id, "\n")] = 0;
     
-    // Verify department exists
+    // 验证科室是否存在
     DepartmentNode *head = load_departments_list();
     
     int dept_found = 0;
@@ -99,16 +133,16 @@ int patient_register_menu(const User *current_user) {
         return ERROR_NOT_FOUND;
     }
     
-    // Show doctors in this department
+    // 2. 展示该科室医生供选择
     show_doctors_by_department(department_id);
     
-    // Get doctor choice
+    // 获取医生编号
     char doctor_id[MAX_ID];
     printf("\n请输入医生编号: ");
     if (fgets(doctor_id, MAX_ID, stdin) == NULL) return ERROR_INVALID_INPUT;
     doctor_id[strcspn(doctor_id, "\n")] = 0;
     
-    // Verify doctor exists and belongs to department
+    // 验证医生是否存在且属于该科室
     DoctorNode *doctor_head = load_doctors_list();
     
     int doc_found = 0;
@@ -130,7 +164,7 @@ int patient_register_menu(const User *current_user) {
         return ERROR_NOT_FOUND;
     }
     
-    // Get patient info
+    // 3. 获取当前患者详细信息
     PatientNode *patient_head = load_patients_list();
     
     int patient_found = 0;
@@ -152,7 +186,7 @@ int patient_register_menu(const User *current_user) {
         return ERROR_NOT_FOUND;
     }
     
-    // Copy patient and doctor info
+    // 备份必要信息用于后续显示
     char patient_id_copy[MAX_ID];
     char patient_name_copy[MAX_NAME];
     char doctor_name_copy[MAX_NAME];
@@ -160,7 +194,7 @@ int patient_register_menu(const User *current_user) {
     strcpy(patient_name_copy, current_patient.name);
     strcpy(doctor_name_copy, selected_doc.name);
     
-    // Create appointment
+    // 4. 创建挂号预约记录
     Appointment new_apt;
     generate_id(new_apt.appointment_id, MAX_ID, "APT");
     strcpy(new_apt.patient_id, patient_id_copy);
@@ -172,10 +206,10 @@ int patient_register_menu(const User *current_user) {
     strcpy(new_apt.status, "已挂号");
     get_current_time(new_apt.create_time, 30);
     
-    // Load existing appointments
+    // 加载现有预约列表
     AppointmentNode *apt_head = load_appointments_list();
     
-    // Add new appointment
+    // 将新预约加入链表末尾
     AppointmentNode *new_apt_node = create_appointment_node(&new_apt);
     if (!new_apt_node) {
         free_doctor_list(doctor_head);
@@ -185,7 +219,6 @@ int patient_register_menu(const User *current_user) {
         return ERROR_FILE_IO;
     }
     
-    // Find the end of the list
     if (!apt_head) {
         apt_head = new_apt_node;
     } else {
@@ -196,13 +229,13 @@ int patient_register_menu(const User *current_user) {
         tail->next = new_apt_node;
     }
     
-    // Save appointments
+    // 保存预约信息到文件
     int result = save_appointments_list(apt_head);
     
-    // Update doctor's busy level
+    // 5. 更新医生的繁忙程度（挂号人数加1）
     selected_doc.busy_level++;
     
-    // Update doctor in the list
+    // 同步更新医生链表中的数据
     current_doc = doctor_head;
     while (current_doc) {
         if (strcmp(current_doc->data.doctor_id, doctor_id) == 0) {
@@ -212,8 +245,10 @@ int patient_register_menu(const User *current_user) {
         current_doc = current_doc->next;
     }
     
+    // 保存医生信息
     save_doctors_list(doctor_head);
     
+    // 释放所有临时链表内存
     free_doctor_list(doctor_head);
     free_patient_list(patient_head);
     free_appointment_list(apt_head);
@@ -230,14 +265,23 @@ int patient_register_menu(const User *current_user) {
     return result;
 }
 
+/**
+ * @brief 查询患者自身的挂号状态
+ * 
+ * 遍历预约记录，展示与当前患者相关的所有挂号信息。
+ * 
+ * @param current_user 当前登录用户
+ * @return int 操作结果状态码
+ */
 int patient_appointment_menu(const User *current_user) {
     printf("\n========== 挂号状态查询 ==========\n");
 
     if (ensure_patient_profile(current_user->username) != SUCCESS) {
-        printf("Patient profile initialization failed!\n");
+        printf("患者档案初始化失败!\n");
         return ERROR_FILE_IO;
     }    
-    // Get current patient
+    
+    // 获取当前患者ID
     PatientNode *patient_head = load_patients_list();
     
     int patient_found = 0;
@@ -260,7 +304,7 @@ int patient_appointment_menu(const User *current_user) {
     
     free_patient_list(patient_head);
     
-    // Get appointments for this patient
+    // 加载所有预约记录并筛选
     AppointmentNode *apt_head = load_appointments_list();
     
     printf("\n========== 我的挂号记录 ==========\n");
@@ -271,7 +315,7 @@ int patient_appointment_menu(const User *current_user) {
     AppointmentNode *current_apt = apt_head;
     while (current_apt) {
         if (strcmp(current_apt->data.patient_id, patient_id_copy) == 0) {
-            // Get doctor name
+            // 获取医生姓名用于友好展示
             DoctorNode *doctor_head = load_doctors_list();
             
             char doctor_name[MAX_NAME] = "未知";
@@ -304,14 +348,23 @@ int patient_appointment_menu(const User *current_user) {
     return SUCCESS;
 }
 
+/**
+ * @brief 查询诊断结果及病历详情
+ * 
+ * 患者可以查看历史诊断记录，并根据记录编号查看详细的诊断建议。
+ * 
+ * @param current_user 当前登录用户
+ * @return int 操作结果状态码
+ */
 int patient_query_diagnosis_menu(const User *current_user) {
     printf("\n========== 诊断结果查询 ==========\n");
 
     if (ensure_patient_profile(current_user->username) != SUCCESS) {
-        printf("Patient profile initialization failed!\n");
+        printf("患者档案初始化失败!\n");
         return ERROR_FILE_IO;
     }    
-    // Get current patient
+    
+    // 获取当前患者ID
     PatientNode *patient_head = load_patients_list();
     
     int patient_found = 0;
@@ -334,7 +387,7 @@ int patient_query_diagnosis_menu(const User *current_user) {
     
     free_patient_list(patient_head);
     
-    // Get medical records for this patient
+    // 加载病历列表
     MedicalRecordNode *record_head = load_medical_records_list();
     
     printf("\n========== 我的诊断记录 ==========\n");
@@ -358,7 +411,7 @@ int patient_query_diagnosis_menu(const User *current_user) {
     if (found == 0) {
         printf("暂无诊断记录。\n");
     } else {
-        // Show diagnosis details
+        // 允许查看具体某条记录的详细内容
         printf("\n请输入记录编号查看详情(输入0返回): ");
         char record_id[MAX_ID];
         if (fgets(record_id, MAX_ID, stdin) == NULL) return ERROR_INVALID_INPUT;
@@ -385,10 +438,18 @@ int patient_query_diagnosis_menu(const User *current_user) {
     return SUCCESS;
 }
 
+/**
+ * @brief 查看全院病房床位信息
+ * 
+ * 展示各类型病房的床位总数、剩余数及预警状态。
+ * 
+ * @param current_user 当前登录用户
+ * @return int 操作结果状态码
+ */
 int patient_view_ward_menu(const User *current_user) {
     printf("\n========== 住院信息查看 ==========\n");
     
-    // Show all wards
+    // 加载病房数据
     WardNode *ward_head = load_wards_list();
     
     if (!ward_head) {
@@ -400,6 +461,7 @@ int patient_view_ward_menu(const User *current_user) {
     printf("%-10s %-15s %-10s %-10s %-10s\n", "病房编号", "类型", "总床位", "剩余", "预警阈值");
     printf("--------------------------------------------------------------------------------\n");
     
+    // 遍历展示病房状态
     WardNode *current_ward = ward_head;
     while (current_ward) {
         printf("%-10s %-15s %-10d %-10d %-10d\n", 
@@ -416,14 +478,23 @@ int patient_view_ward_menu(const User *current_user) {
     return SUCCESS;
 }
 
+/**
+ * @brief 查看个人治疗进度
+ * 
+ * 展示患者当前的治疗阶段（如：检查中、手术后、康复中）及紧急程度。
+ * 
+ * @param current_user 当前登录用户
+ * @return int 操作结果状态码
+ */
 int patient_view_treatment_progress_menu(const User *current_user) {
     printf("\n========== 治疗进度查看 ==========\n");
 
     if (ensure_patient_profile(current_user->username) != SUCCESS) {
-        printf("Patient profile initialization failed!\n");
+        printf("患者档案初始化失败!\n");
         return ERROR_FILE_IO;
     }    
-    // Get current patient
+    
+    // 获取患者档案信息
     PatientNode *patient_head = load_patients_list();
     
     int patient_found = 0;
@@ -459,15 +530,23 @@ int patient_view_treatment_progress_menu(const User *current_user) {
     return SUCCESS;
 }
 
-// Edit patient profile
+/**
+ * @brief 修改患者个人档案信息
+ * 
+ * 提供交互式界面，允许患者更新姓名、性别、年龄、联系方式等基础信息。
+ * 
+ * @param current_user 当前登录用户
+ * @return int 操作结果状态码
+ */
 int patient_edit_profile_menu(const User *current_user) {
     printf("\n========== 修改个人信息 ==========\n");
 
     if (ensure_patient_profile(current_user->username) != SUCCESS) {
-        printf("Patient profile initialization failed!\n");
+        printf("患者档案初始化失败!\n");
         return ERROR_FILE_IO;
     }    
-    // Get current patient
+    
+    // 定位当前患者节点
     PatientNode *patient_head = load_patients_list();
     
     int patient_found = 0;
@@ -488,6 +567,7 @@ int patient_edit_profile_menu(const User *current_user) {
     
     Patient *p = &current_patient_node->data;
     
+    // 显示当前档案内容
     printf("\n当前信息:\n");
     printf("姓名: %s\n", p->name);
     printf("性别: %s\n", p->gender);
@@ -507,6 +587,7 @@ int patient_edit_profile_menu(const User *current_user) {
     
     int choice = get_menu_choice(0, 6);
     
+    // 根据选择更新对应字段
     switch (choice) {
         case 1:
             printf("请输入新姓名: ");
@@ -550,7 +631,7 @@ int patient_edit_profile_menu(const User *current_user) {
             return SUCCESS;
     }
     
-    // Save updated patient data
+    // 将更新后的链表保存回文件
     int result = save_patients_list(patient_head);
     free_patient_list(patient_head);
     
@@ -560,6 +641,3 @@ int patient_edit_profile_menu(const User *current_user) {
     
     return result;
 }
-
-
-

@@ -3,6 +3,10 @@
 
 #include "common.h"
 
+/**
+ * @brief 数据文件存储目录及路径配置
+ * 定义了系统内所有 CSV 文本数据文件的相对路径
+ */
 #define DATA_DIR "data"
 #define USERS_FILE DATA_DIR "/users.txt"
 #define PATIENTS_FILE DATA_DIR "/patients.txt"
@@ -14,84 +18,117 @@
 #define MEDICAL_RECORDS_FILE DATA_DIR "/medical_records.txt"
 #define PRESCRIPTIONS_FILE DATA_DIR "/prescriptions.txt"
 
-// 数据结构定义
+// ==================== 核心业务数据结构定义 ====================
+
+/**
+ * @brief 患者档案结构体
+ * 记录患者的个人基本信息及就诊状态
+ */
 typedef struct {
-    char patient_id[MAX_ID];
-    char username[MAX_USERNAME];
-    char name[MAX_NAME];
-    char gender[10];
-    int age;
-    char phone[20];
-    char address[200];
-    char patient_type[20];
-    char treatment_stage[20];
-    bool is_emergency;
+    char patient_id[MAX_ID];        // 患者唯一业务标识 (前缀: P)
+    char username[MAX_USERNAME];    // 绑定的登录账号名
+    char name[MAX_NAME];            // 真实姓名
+    char gender[10];                // 性别 (男/女/未知)
+    int age;                        // 年龄
+    char phone[20];                 // 联系电话
+    char address[200];              // 家庭住址
+    char patient_type[20];          // 患者类型 (普通/VIP等)
+    char treatment_stage[20];       // 治疗阶段 (初诊/复诊/住院等)
+    bool is_emergency;              // 是否为急诊标志
 } Patient;
 
+/**
+ * @brief 医生档案结构体
+ * 记录医生的基本信息和排班状态
+ */
 typedef struct {
-    char doctor_id[MAX_ID];
-    char username[MAX_USERNAME];
-    char name[MAX_NAME];
-    char department_id[MAX_ID];
-    char title[50];
-    int busy_level;
+    char doctor_id[MAX_ID];         // 医生唯一业务标识 (前缀: D)
+    char username[MAX_USERNAME];    // 绑定的登录账号名
+    char name[MAX_NAME];            // 医生真实姓名
+    char department_id[MAX_ID];     // 所属科室的ID
+    char title[50];                 // 职称 (主任医师/副主任医师等)
+    int busy_level;                 // 忙碌程度指标 (排队人数或工作量度量)
 } Doctor;
 
+/**
+ * @brief 科室结构体
+ * 记录医院行政科室信息
+ */
 typedef struct {
-    char department_id[MAX_ID];
-    char name[MAX_NAME];
-    char leader[MAX_NAME];
-    char phone[20];
+    char department_id[MAX_ID];     // 科室唯一业务标识
+    char name[MAX_NAME];            // 科室名称 (内科/外科等)
+    char leader[MAX_NAME];          // 科室主任姓名
+    char phone[20];                 // 科室内部联系电话
 } Department;
 
+/**
+ * @brief 药品信息结构体
+ * 记录药房药品的库存及价格体系
+ */
 typedef struct {
-    char drug_id[MAX_ID];
-    char name[MAX_NAME];
-    float price;
-    int stock_num;
-    int warning_line;
-    bool is_special;
-    float reimbursement_ratio;
+    char drug_id[MAX_ID];           // 药品唯一业务标识
+    char name[MAX_NAME];            // 药品名称
+    float price;                    // 药品单价
+    int stock_num;                  // 当前库存数量
+    int warning_line;               // 库存预警线 (低于此值需提示采购)
+    bool is_special;                // 是否为特管药品 (处方药/管制药)
+    float reimbursement_ratio;      // 医保报销比例 (0.0 - 1.0)
 } Drug;
 
+/**
+ * @brief 病房资源结构体
+ * 记录医院床位资源的分配情况
+ */
 typedef struct {
-    char ward_id[MAX_ID];
-    char type[50];
-    int total_beds;
-    int remain_beds;
-    int warning_line;
+    char ward_id[MAX_ID];           // 病房唯一业务标识
+    char type[50];                  // 病房类型 (普通/ICU/VIP等)
+    int total_beds;                 // 总床位数
+    int remain_beds;                // 空余床位数
+    int warning_line;               // 床位紧张预警线
 } Ward;
 
+/**
+ * @brief 挂号预约结构体
+ * 记录患者挂号的时间、科室、医生及当前状态
+ */
 typedef struct {
-    char appointment_id[MAX_ID];
-    char patient_id[MAX_ID];
-    char doctor_id[MAX_ID];
-    char department_id[MAX_ID];
-    char appointment_date[20];
-    char appointment_time[20];
-    char status[20];
-    char create_time[30];
+    char appointment_id[MAX_ID];    // 挂号单唯一标识
+    char patient_id[MAX_ID];        // 关联的患者ID
+    char doctor_id[MAX_ID];         // 预约的医生ID
+    char department_id[MAX_ID];     // 预约的科室ID
+    char appointment_date[20];      // 预约日期 (YYYY-MM-DD)
+    char appointment_time[20];      // 预约具体时间段
+    char status[20];                // 挂号状态 (待就诊/已就诊/已取消)
+    char create_time[30];           // 订单创建时间戳
 } Appointment;
 
+/**
+ * @brief 医疗诊断记录结构体
+ * 记录医生对患者的诊断结果
+ */
 typedef struct {
-    char record_id[MAX_ID];
-    char patient_id[MAX_ID];
-    char doctor_id[MAX_ID];
-    char appointment_id[MAX_ID];
-    char diagnosis[500];
-    char diagnosis_date[20];
-    char status[20];
+    char record_id[MAX_ID];         // 诊断记录唯一标识
+    char patient_id[MAX_ID];        // 关联患者
+    char doctor_id[MAX_ID];         // 做出诊断的医生
+    char appointment_id[MAX_ID];    // 关联的挂号单ID
+    char diagnosis[500];            // 诊断结论详情
+    char diagnosis_date[20];        // 诊断日期
+    char status[20];                // 病历状态
 } MedicalRecord;
 
+/**
+ * @brief 处方单结构体
+ * 记录医生为患者开具的用药明细及费用
+ */
 typedef struct {
-    char prescription_id[MAX_ID];
-    char record_id[MAX_ID];
-    char patient_id[MAX_ID];
-    char doctor_id[MAX_ID];
-    char drug_id[MAX_ID];
-    int quantity;
-    float total_price;
-    char prescription_date[20];
+    char prescription_id[MAX_ID];   // 处方单唯一标识
+    char record_id[MAX_ID];         // 关联的诊断记录ID
+    char patient_id[MAX_ID];        // 患者ID
+    char doctor_id[MAX_ID];         // 开方医生ID
+    char drug_id[MAX_ID];           // 药品ID
+    int quantity;                   // 开具数量
+    float total_price;              // 该项总价
+    char prescription_date[20];     // 开方日期
 } Prescription;
 
 // 链表节点结构定义
