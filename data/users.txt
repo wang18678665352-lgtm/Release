@@ -1,0 +1,10 @@
+admin,admin123,admin
+doctor1,doctor123,doctor
+doctor2,doctor123,doctor
+doctor3,doctor123,doctor
+doctor4,doctor123,doctor
+doctor5,doctor123,doctor
+doctor6,doctor123,doctor
+doctor7,doctor123,doctor
+patient1,patient123,patient
+patient2,patient123,patient
